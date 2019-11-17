@@ -1,8 +1,8 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
 const cTable = require('console.table');
-// const viewJS = require("./lib/view");
-// const addJS = require("./lib/add");
+// const view = require("./lib/view");
+// const add = require("./lib/add");
 
 const connection = mysql.createConnection({
     host: "localhost",
@@ -26,7 +26,6 @@ connection.connect(function (err) {
 
 // Bonus points if you're able to:
 //     Update an employees managers
-//     View employees by manager
 //     Delete departments
 //     Delete a role
 //     Delete an employee
@@ -39,19 +38,36 @@ function mainMenu() {
             type: "list",
             message: "Would you like to do?",
             choices: [
+                "View all employees",
+                "View all managers",
+                "View employees by manager",
+                "View all departments",
+                "View all roles",
                 "Add a new employee",
                 "Add a new department",
                 "Add a new role",
-                "View departments",
-                "View roles",
-                "View employees",
                 "Update an employee's role",
+                "Update an employee's manager",
                 "Exit"
             ]
         })
         .then(function (answer) {
             // based on their answer, either call the bid or the post functions
-            if (answer.mainMenuQuestions === "Add a new employee") {
+            if (answer.mainMenuQuestions === "View all employees") {
+                viewEmployee();
+            }
+            else if (answer.mainMenuQuestions === "View all managers") {
+                viewManagers();
+            }
+            else if (answer.mainMenuQuestions === "View employees by manager") {
+                viewByManager();
+            }
+            else if (answer.mainMenuQuestions === "View all departments") {
+                viewDept();
+            }
+            else if (answer.mainMenuQuestions === "View all roles") {
+                viewRole();
+            } else if (answer.mainMenuQuestions === "Add a new employee") {
                 addEmployee()
             }
             else if (answer.mainMenuQuestions === "Add a new department") {
@@ -60,22 +76,73 @@ function mainMenu() {
             else if (answer.mainMenuQuestions === "Add a new role") {
                 addRole();
             }
-            else if (answer.mainMenuQuestions === "View departments") {
-                viewDept();
-            }
-            else if (answer.mainMenuQuestions === "View roles") {
-                viewRole();
-            }
-            else if (answer.mainMenuQuestions === "View employees") {
-                viewEmployee();
-            }
-            else if (answer.mainMenuQuestions === "Update an employee's role") {
+            else if (answer.mainMenuQuestions === "Update an employeye's role") {
                 updateRole();
+            }
+            else if (answer.mainMenuQuestions === "Update an employee's manager") {
+                updateManager();
             } else {
                 console.log("**************")
                 connection.end();
             }
         });
+}
+
+function viewEmployee() {
+    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id", function (err, results) {
+        if (err) throw err;
+        console.table("List of Roles:", results);
+        mainMenu();
+    });
+}
+
+function viewManagers() {
+    connection.query("SELECT first_name AS First, last_name AS Last, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id WHERE manager_id IS NULL", function (err, results) {
+        if (err) throw err;
+        console.table("List of Managers:", results);
+        mainMenu();
+    });
+}
+
+function viewByManager() {
+    connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
+        if (err) throw err;
+        if (results.length > 0) {
+            inquirer
+                .prompt([
+                    {
+                        name: "choice",
+                        type: "rawlist",
+                        choices: function () {
+                            var choiceArray = [];
+                            for (var i = 0; i < results.length; i++) {
+                                choiceArray.push(results[i].first_name + " " + results[i].last_name);
+                            }
+                            return choiceArray;
+                        },
+                        message: "Which manager would you like to view?"
+                    }
+                ])
+                .then(function (answer) {
+                    // get the information of the chosen item
+                    let managersId;
+                    for (var i = 0; i < results.length; i++) {
+                        if (results[i].first_name + " " + results[i].last_name === answer.choice) {
+                            managersId = results[i].id;
+                        }
+                    }
+                    if (err) throw err;
+                    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id WHERE manager_id = " + managersId, function (err, results) {
+                        if (err) throw err;
+                        console.table("List of Employees managed by " + answer.choice + ":", results);
+                        mainMenu();
+                    });
+                });
+        } else {
+            console.log("There are no managers to view.");
+            mainMenu();
+        }
+    });
 }
 
 function viewDept() {
@@ -88,15 +155,6 @@ function viewDept() {
 
 function viewRole() {
     connection.query("SELECT title  AS Title, salary AS Salary, department.name AS Department FROM role INNER JOIN department ON department.id = role.department_id", function (err, results) {
-        if (err) throw err;
-        console.table("List of Roles:", results);
-        mainMenu();
-    });
-}
-
-
-function viewEmployee() {
-    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id", function (err, results) {
         if (err) throw err;
         console.table("List of Roles:", results);
         mainMenu();
@@ -272,7 +330,6 @@ function addEmployee() {
                             });
                     } else {
                         console.log("There are no managers available to add.");
-                        console.log(answer);
                         connection.query(
                             "INSERT INTO employee SET ?",
                             {
@@ -323,42 +380,116 @@ function updateRole() {
                     }
                     connection.query("SELECT * FROM role", function (err, results) {
                         if (err) throw err;
-                    inquirer
-                        .prompt([
-                            {
-                                name: "choice",
-                                type: "rawlist",
-                                choices: function () {
-                                    var choiceArray = [];
-                                    for (var i = 0; i < results.length; i++) {
-                                        choiceArray.push(results[i].title);
+                        inquirer
+                            .prompt([
+                                {
+                                    name: "choice",
+                                    type: "rawlist",
+                                    choices: function () {
+                                        var choiceArray = [];
+                                        for (var i = 0; i < results.length; i++) {
+                                            choiceArray.push(results[i].title);
+                                        }
+                                        return choiceArray;
+                                    },
+                                    message: "What is the new role of this employee?"
+                                }
+                            ])
+                            .then(function (answer2) {
+                                let myRoleChoice;
+                                for (var i = 0; i < results.length; i++) {
+                                    if (results[i].title === answer2.choice) {
+                                        myRoleChoice = results[i];
                                     }
-                                    return choiceArray;
-                                },
-                                message: "What is the new role of this employee?"
-                            }
-                        ])
-                        .then(function (answer2) {
-                            let myRoleChoice;
-                            for (var i = 0; i < results.length; i++) {
-                                if (results[i].title === answer2.choice) {
-                                    myRoleChoice = results[i];
                                 }
-                            }
-                            connection.query(
-                                "Update employee SET role_id = " + myRoleChoice.id + ", department_id = " + myRoleChoice.department_id + " WHERE ID =" + myEmpChoice.id,
-                                function (err) {
-                                    if (err) throw err;
-                                    console.log("The new department was added!");
-                                    // re-prompt the user for if they want to bid or post
-                                    mainMenu();
-                                }
-                            );
-                        });
+                                connection.query(
+                                    "Update employee SET role_id = " + myRoleChoice.id + ", department_id = " + myRoleChoice.department_id + " WHERE ID =" + myEmpChoice.id,
+                                    function (err) {
+                                        if (err) throw err;
+                                        console.log("The employee's role was updated!");
+                                        mainMenu();
+                                    }
+                                );
+                            });
                     })
                 });
         } else {
             console.log("At least one department must be created to create a role.")
+            mainMenu();
+        }
+    });
+}
+
+function updateManager() {
+    connection.query("SELECT * FROM employee WHERE manager_id IS NOT NULL", function (err, results) {
+        if (err) throw err;
+        if (results.length > 0) {
+            inquirer
+                .prompt([
+                    {
+                        name: "choice",
+                        type: "rawlist",
+                        choices: function () {
+                            var choiceArray = [];
+                            for (var i = 0; i < results.length; i++) {
+                                choiceArray.push(results[i].first_name + " " + results[i].last_name);
+                            }
+                            return choiceArray;
+                        },
+                        message: "Who's manager would you like to update?"
+                    }
+                ])
+                .then(function (answer) {
+                    // get the information of the chosen item
+                    let myEmpChoice;
+                    for (var i = 0; i < results.length; i++) {
+                        if (results[i].first_name + " " + results[i].last_name === answer.choice) {
+                            myEmpChoice = results[i];
+                        }
+                    }
+                    connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
+                        if (err) throw err;
+                        if (results.length > 0) {
+                            inquirer
+                                .prompt([
+                                    {
+                                        name: "choice",
+                                        type: "rawlist",
+                                        choices: function () {
+                                            var choiceArray = [];
+                                            for (var i = 0; i < results.length; i++) {
+                                                choiceArray.push(results[i].first_name + " " + results[i].last_name);
+                                            }
+                                            choiceArray.push("None");
+                                            return choiceArray;
+                                        },
+                                        message: "Who is this emmployee's new manager?"
+                                    }
+                                ])
+                                .then(function (answer2) {
+                                    let myNewManager;
+                                    for (var i = 0; i < results.length; i++) {
+                                        if (results[i].first_name + " " + results[i].last_name === answer2.choice) {
+                                            myNewManager = results[i];
+                                        }
+                                    }
+                                    connection.query(
+                                        "Update employee SET manager_id = " + myNewManager.id + " WHERE ID = " + myEmpChoice.id,
+                                        function (err) {
+                                            if (err) throw err;
+                                            console.log("The new employees manager has been updated Please update their role if required.");
+                                            mainMenu();
+                                        }
+                                    );
+                                });
+                        } else {
+                            console.log("There are no employees to choose from.");
+                            mainMenu();
+                        }
+                    });
+                });
+        } else {
+            console.log("There are no employees to choose from.");
             mainMenu();
         }
     });
