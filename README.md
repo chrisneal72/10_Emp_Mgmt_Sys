@@ -9,10 +9,10 @@
 ### Description
 This assignment is using SQL as a database. The premise is to track employees. The assignment uses 3 tables to track the employee, the departments and the roles within the company. This is a CLI app, so there is no interface HTML interface to view.  The available options are:
 
-* **View all employees**
-    * A select of all the employees, I also brought in their role and department as well
-* **View all managers**
-    * For this I decided that any employee without a manage is a manager, so my select looks for users without a manager ID
+> * **View all employees**
+>     * A select of all the employees, I also brought in their role and department as well
+> * **View all managers**
+>    * For this I decided that any employee without a manage is a manager, so my select looks for users without a manager ID
 * **View employees by manager**
     * For this task I select a manager and then do a search for any employee that has a manager id that matches
 * **View all departments**
