@@ -25,11 +25,16 @@ connection.connect(function (err) {
 });
 
 // Bonus points if you're able to:
-//     Update an employees managers
 //     Delete departments
 //     Delete a role
 //     Delete an employee
 //     View the total utilized budget of a department
+
+// NOTES FOR POSSIBLE ADJUSTMENTS
+// WHEN CREATING AN EMPLOYEE OR UPDATING AN EMPLOYEES MANAGER, LIMIT SELECTIONS TO THE DEPT THEY ARE IN.
+// IN ADD ROLE, THERE SHOULD BE A NONE OPTION FOR THE DEPT SO THAT IF A PROPER DEPT DOES NOT EXIST THEY WILL STEP BACK TO THE MAIN MENU
+// IN ADD EMPLOYEE THERE SHOULD BE 
+// IN UPDATE MANAGER I AM ONLY SELECTING NON-MANAGERS, I SHOULD PROBABLY INCLUDE MANAGERS SO AN ERROR CAN BE FIXED OR A MANGER CAN BE DEMOTED
 
 function mainMenu() {
     inquirer
@@ -88,14 +93,17 @@ function mainMenu() {
         });
 }
 
+// VIEWING ALL EMPLOYEES AND SHOWING THIER ROLE AND DEPARTMENT
 function viewEmployee() {
-    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id", function (err, results) {
+    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id", function (err, results) {
         if (err) throw err;
         console.table("List of Roles:", results);
         mainMenu();
     });
 }
 
+// VIEWING ALL MANAGERS AND THEIR DEPARTMENT. I AM DOING THIS BY ASSUMING ANY EMPLOYEE WITH NO 
+// MANAGER ASSIGNED IS A MANAGER. THIS IS THE APPROACH I TOOK FROM THE START OF THE ASSIGNMENT
 function viewManagers() {
     connection.query("SELECT first_name AS First, last_name AS Last, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id WHERE manager_id IS NULL", function (err, results) {
         if (err) throw err;
@@ -104,7 +112,9 @@ function viewManagers() {
     });
 }
 
+// VIEW EMPLOYEE BY MANAGER. FIRST THE USER SELECTS A MANAGER AND THEN THE EMPLOYEES UNDER THEM ARE DISPLAYED
 function viewByManager() {
+    // FIND ALL EMPLOYEES THAT DO NOT HAVE A MANAGER AS THIS MEANS THEY ARE A MANAGER AND OFFER AS A SELECTION
     connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
         if (err) throw err;
         if (results.length > 0) {
@@ -124,7 +134,7 @@ function viewByManager() {
                     }
                 ])
                 .then(function (answer) {
-                    // get the information of the chosen item
+                    // GET THE ID OF THE CHOSEN MANAGER
                     let managersId;
                     for (var i = 0; i < results.length; i++) {
                         if (results[i].first_name + " " + results[i].last_name === answer.choice) {
@@ -132,19 +142,23 @@ function viewByManager() {
                         }
                     }
                     if (err) throw err;
+                    // SEARCH FOR THE EMPLOYEES WITH THE MANAGER_ID OF THE CHOSEN MANAGER
                     connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id WHERE manager_id = " + managersId, function (err, results) {
                         if (err) throw err;
+                        // TITLE THE CONSOLE TABLE USING THE MANAGERS NAME AND THE RESULTS
                         console.table("List of Employees managed by " + answer.choice + ":", results);
                         mainMenu();
                     });
                 });
         } else {
+            // IN CASE WE HAVE NOT ADDED A MANAGER YET
             console.log("There are no managers to view.");
             mainMenu();
         }
     });
 }
 
+// VIEW ALL OF OUR DEPARTMENTS
 function viewDept() {
     connection.query("SELECT name AS Name FROM department", function (err, results) {
         if (err) throw err;
@@ -153,6 +167,7 @@ function viewDept() {
     });
 }
 
+//VIEW ALL OF THE ROLES
 function viewRole() {
     connection.query("SELECT title  AS Title, salary AS Salary, department.name AS Department FROM role INNER JOIN department ON department.id = role.department_id", function (err, results) {
         if (err) throw err;
@@ -161,8 +176,10 @@ function viewRole() {
     });
 }
 
+ADDING A NEW DEPARTMENT
 function addDept() {
     console.log("Adding a new Department...\n");
+    // GET THE NAME OF THE NEW DEPT
     inquirer
         .prompt([
             {
@@ -172,24 +189,25 @@ function addDept() {
             }
         ])
         .then(function (answer) {
-            // when finished prompting, insert a new item into the db with that info
+            // INSERT THE NEW DEPT INTO THE DEPARTMENT TABLE
             connection.query(
                 "INSERT INTO department SET ?",
                 answer,
                 function (err) {
                     if (err) throw err;
                     console.log("The new department was added!");
-                    // re-prompt the user for if they want to bid or post
                     mainMenu();
                 }
             );
         });
 }
 
+//ADDING A NEW ROLE
 function addRole() {
+    //ROLES BELONG TO DEPARTMENTS. GETTING A LIST OF DEPTS TO DISPLAY IN THE QUESTIONS
     connection.query("SELECT * FROM department", function (err, results) {
         if (err) throw err;
-        // once you have the items, prompt the user for which they'd like to bid on
+        // MAKE SURE WE HAVE CATEGORIES IN THE SYSTEM AS THEY ARE REQUIRED FOR ROLES
         if (results.length > 0) {
             inquirer
                 .prompt([
@@ -211,13 +229,15 @@ function addRole() {
                             for (var i = 0; i < results.length; i++) {
                                 choiceArray.push(results[i].name);
                             }
+                            // I SHOULD ADD A NONE HERE SO THEY CAN STEP OUT OF THE PROCESS IF THE PROPER 
+                            // DEPT IS NOT AVAILABLE AND KICK THEM BACK TO THE MAIN MENU WITH AND LOG TELLING
+                            // THEM TO CREATE A DEPT FOR THIS EMPLOYEE
                             return choiceArray;
                         },
                         message: "What department does this role belong to?"
                     }
                 ])
                 .then(function (answer) {
-                    // get the information of the chosen item
                     for (var i = 0; i < results.length; i++) {
                         if (results[i].name === answer.choice) {
                             answer.department_id = results[i].id;
@@ -240,13 +260,16 @@ function addRole() {
                     );
                 });
         } else {
+            // IF NO DEPARTMENTS NO ROLES CAN BE CREATED
             console.log("At least one department must be created to create a role.")
             mainMenu();
         }
     });
 }
 
+// ADDING A NEW EMPLOYEE
 function addEmployee() {
+    // GET ALL THE ROLES SO WE CAN ASSIGN A ROLE TO OUR EMPLOYEE
     connection.query("SELECT * FROM role", function (err, results) {
         if (err) throw err;
         // once you have the items, prompt the user for which they'd like to bid on
@@ -270,6 +293,9 @@ function addEmployee() {
                         for (var i = 0; i < results.length; i++) {
                             choiceArray.push(results[i].title);
                         }
+                        // I SHOULD ADD A NONE HERE SO THEY CAN STEP OUT OF THE PROCESS IF THE PROPER 
+                        // ROLE IS NOT AVAILABLE AND KICK THEM BACK TO THE MAIN MENU WITH AND LOG TELLING
+                        // THEM TO CREATE A ROLE FOR THIS EMPLOYEE
                         return choiceArray;
                     },
                     message: "What is the employee's role?"
@@ -283,9 +309,12 @@ function addEmployee() {
                         answer.department_id = results[i].department_id;
                     }
                 }
-
+                
+                // GET A LIST OF MANAGERS TO ASSIGN THE EMPLOYEE TO. I SHOULD USE THE ROLE TO LIMIT THE MANAGERS
+                // BY DEPARTMENT
                 connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
                     if (err) throw err;
+                    // IF THEY CHOSE A MANAGER
                     if (results.length > 0) {
                         inquirer
                             .prompt([
@@ -297,6 +326,7 @@ function addEmployee() {
                                         for (var i = 0; i < results.length; i++) {
                                             choiceArray.push(results[i].first_name + " " + results[i].last_name);
                                         }
+                                        // THEY HAVE A CHOICE OF NONE SO THAT THE EMPLOYEE CAN BE A MANAGER
                                         choiceArray.push("None");
                                         return choiceArray;
                                     },
@@ -304,7 +334,7 @@ function addEmployee() {
                                 }
                             ])
                             .then(function (answer2) {
-                                // get the information of the chosen item
+                                // ADD THE MANAGER ID TO THE PREVIOUS ANSWERS
                                 for (var i = 0; i < results.length; i++) {
                                     if (results[i].first_name + " " + results[i].last_name === answer2.choice) {
                                         answer.manager_id = results[i].id;
@@ -328,8 +358,9 @@ function addEmployee() {
                                 );
 
                             });
+                    // NO MANAGER SELECTED (OR AVAILABLE) SO THE EMPLOYEE IS CONSIDERED A MANAGER
                     } else {
-                        console.log("There are no managers available to add.");
+                        console.log("No manager was added for this employee, The are a manager.");
                         connection.query(
                             "INSERT INTO employee SET ?",
                             {
@@ -350,10 +381,11 @@ function addEmployee() {
     });
 }
 
+//UPDATE THE EMPLOYEES ROLE
 function updateRole() {
     connection.query("SELECT * FROM employee", function (err, results) {
         if (err) throw err;
-        // once you have the items, prompt the user for which they'd like to bid on
+        // GET A LIST OF ALL EMPLOYEES
         if (results.length > 0) {
             inquirer
                 .prompt([
@@ -371,13 +403,14 @@ function updateRole() {
                     }
                 ])
                 .then(function (answer) {
-                    // get the information of the chosen item
+                    // GET THE EMPLOYEE ID
                     let myEmpChoice;
                     for (var i = 0; i < results.length; i++) {
                         if (results[i].first_name + " " + results[i].last_name === answer.choice) {
                             myEmpChoice = results[i];
                         }
                     }
+                    // GET ROLES TO SELECT FROM
                     connection.query("SELECT * FROM role", function (err, results) {
                         if (err) throw err;
                         inquirer
@@ -402,6 +435,7 @@ function updateRole() {
                                         myRoleChoice = results[i];
                                     }
                                 }
+                                //UPDATE THE ROLE AND ALSO UPDATING THE DEPT USING THE ROLE IN CASE THEY TRANSFER DEPARTMENTS
                                 connection.query(
                                     "Update employee SET role_id = " + myRoleChoice.id + ", department_id = " + myRoleChoice.department_id + " WHERE ID =" + myEmpChoice.id,
                                     function (err) {
@@ -413,14 +447,18 @@ function updateRole() {
                             });
                     })
                 });
+        // IF NO EMPLOYEES IN THE SYSTEM, NO ONE CAN BE UPDATED
         } else {
-            console.log("At least one department must be created to create a role.")
+            console.log("No Employees are in the system, please add at least one employee.")
             mainMenu();
         }
     });
 }
 
+// UPDATE AN EMPLOYEES MANAGER
 function updateManager() {
+    // GETTING A LIST OF ALL EMPLOYEES THAT ARE NOT MANAGERS. I SHOULD GET MANAGERS TOO, AS NOW 
+    // ONCE A MANAGER, ALWAYS A MANAGER
     connection.query("SELECT * FROM employee WHERE manager_id IS NOT NULL", function (err, results) {
         if (err) throw err;
         if (results.length > 0) {
@@ -447,6 +485,8 @@ function updateManager() {
                             myEmpChoice = results[i];
                         }
                     }
+                    // GETTING THE LIST OF MANAGERS. I SHOULD USE THE SELECTED EMPLOYEE'S DEPT ID TO GET JUST 
+                    // MANAGERS FROM THEIR DEPT.
                     connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
                         if (err) throw err;
                         if (results.length > 0) {
