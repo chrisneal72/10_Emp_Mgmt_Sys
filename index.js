@@ -24,17 +24,14 @@ connection.connect(function (err) {
     mainMenu();
 });
 
-// Bonus points if you're able to:
+// Remaining bonus options:
 //     Delete departments
 //     Delete a role
-//     Delete an employee
 //     View the total utilized budget of a department
 
-// NOTES FOR POSSIBLE ADJUSTMENTS
-// WHEN CREATING AN EMPLOYEE OR UPDATING AN EMPLOYEES MANAGER, LIMIT SELECTIONS TO THE DEPT THEY ARE IN.
+// NOTES FOR POSSIBLE ADJUSTMENT
 // IN ADD ROLE, THERE SHOULD BE A NONE OPTION FOR THE DEPT SO THAT IF A PROPER DEPT DOES NOT EXIST THEY WILL STEP BACK TO THE MAIN MENU
-// IN ADD EMPLOYEE THERE SHOULD BE 
-// IN UPDATE MANAGER I AM ONLY SELECTING NON-MANAGERS, I SHOULD PROBABLY INCLUDE MANAGERS SO AN ERROR CAN BE FIXED OR A MANGER CAN BE DEMOTED
+// NONE OPTION IN ADD EMPLOYEE FOR THE ROLE TO KILL THE PROCESS IF THE PROPER ROLE DOES NOT EXIST
 
 function mainMenu() {
     inquirer
@@ -53,42 +50,48 @@ function mainMenu() {
                 "Add a new role",
                 "Update an employee's role",
                 "Update an employee's manager",
+                "Delete an employee",
                 "Exit"
             ]
         })
         .then(function (answer) {
-            // based on their answer, either call the bid or the post functions
-            if (answer.mainMenuQuestions === "View all employees") {
-                viewEmployee();
-            }
-            else if (answer.mainMenuQuestions === "View all managers") {
-                viewManagers();
-            }
-            else if (answer.mainMenuQuestions === "View employees by manager") {
-                viewByManager();
-            }
-            else if (answer.mainMenuQuestions === "View all departments") {
-                viewDept();
-            }
-            else if (answer.mainMenuQuestions === "View all roles") {
-                viewRole();
-            } else if (answer.mainMenuQuestions === "Add a new employee") {
-                addEmployee()
-            }
-            else if (answer.mainMenuQuestions === "Add a new department") {
-                addDept();
-            }
-            else if (answer.mainMenuQuestions === "Add a new role") {
-                addRole();
-            }
-            else if (answer.mainMenuQuestions === "Update an employeye's role") {
-                updateRole();
-            }
-            else if (answer.mainMenuQuestions === "Update an employee's manager") {
-                updateManager();
-            } else {
-                console.log("**************")
-                connection.end();
+            switch (answer.mainMenuQuestions) {
+                case "View all employees":
+                    viewEmployee();
+                    break;
+                case "View all managers":
+                    viewManagers();
+                    break;
+                case "View employees by manager":
+                    viewByManager();
+                    break;
+                case "View all departments":
+                    viewDept();
+                    break;
+                case "View all roles":
+                    viewRole();
+                    break;
+                case "Add a new employee":
+                    addEmployee();
+                    break;
+                case "Add a new department":
+                    addDept();
+                    break;
+                case "Add a new role":
+                    addRole();
+                    break;
+                case "Update an employee's role":
+                    updateRole();
+                    break;
+                case "Update an employee's manager":
+                    updateManager();
+                    break;
+                case "Delete an employee":
+                    deleteEmployee();
+                    break;
+                default:
+                    console.log("**************")
+                    connection.end();
             }
         });
 }
@@ -143,7 +146,7 @@ function viewByManager() {
                     }
                     if (err) throw err;
                     // SEARCH FOR THE EMPLOYEES WITH THE MANAGER_ID OF THE CHOSEN MANAGER
-                    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id WHERE manager_id = " + managersId, function (err, results) {
+                    connection.query("SELECT first_name AS First, last_name AS Last, role.title as Role, role.salary AS Salary, department.name AS Department FROM employee INNER JOIN department ON department.id = employee.department_id left JOIN role ON role.id = employee.role_id WHERE ?", { manager_id: managersId }, function (err, results) {
                         if (err) throw err;
                         // TITLE THE CONSOLE TABLE USING THE MANAGERS NAME AND THE RESULTS
                         console.table("List of Employees managed by " + answer.choice + ":", results);
@@ -176,7 +179,7 @@ function viewRole() {
     });
 }
 
-ADDING A NEW DEPARTMENT
+// ADDING A NEW DEPARTMENT
 function addDept() {
     console.log("Adding a new Department...\n");
     // GET THE NAME OF THE NEW DEPT
@@ -229,15 +232,14 @@ function addRole() {
                             for (var i = 0; i < results.length; i++) {
                                 choiceArray.push(results[i].name);
                             }
-                            // I SHOULD ADD A NONE HERE SO THEY CAN STEP OUT OF THE PROCESS IF THE PROPER 
-                            // DEPT IS NOT AVAILABLE AND KICK THEM BACK TO THE MAIN MENU WITH AND LOG TELLING
-                            // THEM TO CREATE A DEPT FOR THIS EMPLOYEE
+                            // choiceArray.push("None, exit to create a new department");
                             return choiceArray;
                         },
                         message: "What department does this role belong to?"
                     }
                 ])
                 .then(function (answer) {
+                    // if(answer.choice === "What department does this role belong to?"){mainMenu()};
                     for (var i = 0; i < results.length; i++) {
                         if (results[i].name === answer.choice) {
                             answer.department_id = results[i].id;
@@ -293,15 +295,15 @@ function addEmployee() {
                         for (var i = 0; i < results.length; i++) {
                             choiceArray.push(results[i].title);
                         }
-                        // I SHOULD ADD A NONE HERE SO THEY CAN STEP OUT OF THE PROCESS IF THE PROPER 
-                        // ROLE IS NOT AVAILABLE AND KICK THEM BACK TO THE MAIN MENU WITH AND LOG TELLING
-                        // THEM TO CREATE A ROLE FOR THIS EMPLOYEE
+                        // choiceArray.push("None, exit process to create a new role");
                         return choiceArray;
                     },
                     message: "What is the employee's role?"
                 }
             ])
             .then(function (answer) {
+                console.log(answer.choice)
+                // if(answer.choice === "None, exit process to create a new role"){mainMenu();};
                 // get the information of the chosen item
                 for (var i = 0; i < results.length; i++) {
                     if (results[i].title === answer.choice) {
@@ -309,10 +311,9 @@ function addEmployee() {
                         answer.department_id = results[i].department_id;
                     }
                 }
-                
-                // GET A LIST OF MANAGERS TO ASSIGN THE EMPLOYEE TO. I SHOULD USE THE ROLE TO LIMIT THE MANAGERS
-                // BY DEPARTMENT
-                connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
+
+                // GET A LIST OF MANAGERS TO ASSIGN THE EMPLOYEE TO. ONLY MANAGES THAT BELONG TO THE ROLE/DEPT ARRE DISPLAYED
+                connection.query("SELECT * FROM employee WHERE manager_id IS NULL AND department_id = ?", answer.department_id, function (err, results) {
                     if (err) throw err;
                     // IF THEY CHOSE A MANAGER
                     if (results.length > 0) {
@@ -358,7 +359,7 @@ function addEmployee() {
                                 );
 
                             });
-                    // NO MANAGER SELECTED (OR AVAILABLE) SO THE EMPLOYEE IS CONSIDERED A MANAGER
+                        // NO MANAGER SELECTED (OR AVAILABLE) SO THE EMPLOYEE IS CONSIDERED A MANAGER
                     } else {
                         console.log("No manager was added for this employee, The are a manager.");
                         connection.query(
@@ -437,7 +438,7 @@ function updateRole() {
                                 }
                                 //UPDATE THE ROLE AND ALSO UPDATING THE DEPT USING THE ROLE IN CASE THEY TRANSFER DEPARTMENTS
                                 connection.query(
-                                    "Update employee SET role_id = " + myRoleChoice.id + ", department_id = " + myRoleChoice.department_id + " WHERE ID =" + myEmpChoice.id,
+                                    "Update employee SET ? WHERE ID = ?", [{ role_id: myRoleChoice.id, department_id: myRoleChoice.department_id }, myEmpChoice.id],
                                     function (err) {
                                         if (err) throw err;
                                         console.log("The employee's role was updated!");
@@ -447,7 +448,7 @@ function updateRole() {
                             });
                     })
                 });
-        // IF NO EMPLOYEES IN THE SYSTEM, NO ONE CAN BE UPDATED
+            // IF NO EMPLOYEES IN THE SYSTEM, NO ONE CAN BE UPDATED
         } else {
             console.log("No Employees are in the system, please add at least one employee.")
             mainMenu();
@@ -457,8 +458,7 @@ function updateRole() {
 
 // UPDATE AN EMPLOYEES MANAGER
 function updateManager() {
-    // GETTING A LIST OF ALL EMPLOYEES THAT ARE NOT MANAGERS. I SHOULD GET MANAGERS TOO, AS NOW 
-    // ONCE A MANAGER, ALWAYS A MANAGER
+    // GETTING A LIST OF ALL EMPLOYEES THAT ARE NOT MANAGERS.
     connection.query("SELECT * FROM employee WHERE manager_id IS NOT NULL", function (err, results) {
         if (err) throw err;
         if (results.length > 0) {
@@ -485,9 +485,8 @@ function updateManager() {
                             myEmpChoice = results[i];
                         }
                     }
-                    // GETTING THE LIST OF MANAGERS. I SHOULD USE THE SELECTED EMPLOYEE'S DEPT ID TO GET JUST 
-                    // MANAGERS FROM THEIR DEPT.
-                    connection.query("SELECT * FROM employee WHERE manager_id IS NULL", function (err, results) {
+                    // GETTING THE LIST OF MANAGERS. CAN ONLY CHOOSE MANAGERS FROM THE EMPLOYEE'S DEPT.
+                    connection.query("SELECT * FROM employee WHERE manager_id IS NULL AND department_id = ?", myEmpChoice.department_id, function (err, results) {
                         if (err) throw err;
                         if (results.length > 0) {
                             inquirer
@@ -514,7 +513,7 @@ function updateManager() {
                                         }
                                     }
                                     connection.query(
-                                        "Update employee SET manager_id = " + myNewManager.id + " WHERE ID = " + myEmpChoice.id,
+                                        "Update employee SET manager_id = ? WHERE ID = ?", [myNewManager.id, myEmpChoice.id],
                                         function (err) {
                                             if (err) throw err;
                                             console.log("The new employees manager has been updated Please update their role if required.");
@@ -533,4 +532,37 @@ function updateManager() {
             mainMenu();
         }
     });
+}
+
+function deleteEmployee() {
+    connection.query("SELECT * FROM employee", function (err, results) {
+        if (err) throw err;
+            inquirer
+                .prompt([
+                    {
+                        name: "choice",
+                        type: "rawlist",
+                        choices: function () {
+                            var choiceArray = [];
+                            for (var i = 0; i < results.length; i++) {
+                                choiceArray.push(results[i].first_name + " " + results[i].last_name);
+                            }
+                            return choiceArray;
+                        },
+                        message: "Which employee would you like to delete??"
+                    }
+                ])
+                .then(function (answer) {
+                    // get the information of the chosen item
+                    let myEmpChoice;
+                    for (var i = 0; i < results.length; i++) {
+                        if (results[i].first_name + " " + results[i].last_name === answer.choice) {
+                            myEmpChoice = results[i];
+                        }
+                    }
+                    // GETTING THE LIST OF MANAGERS. CAN ONLY CHOOSE MANAGERS FROM THE EMPLOYEE'S DEPT.
+                    connection.query("DELETE FROM employee WHERE ID = ?", myEmpChoice.id);
+                    mainMenu();
+                });
+        });
 }
