@@ -29,10 +29,6 @@ connection.connect(function (err) {
 //     Delete a role
 //     View the total utilized budget of a department
 
-// NOTES FOR POSSIBLE ADJUSTMENT
-// IN ADD ROLE, THERE SHOULD BE A NONE OPTION FOR THE DEPT SO THAT IF A PROPER DEPT DOES NOT EXIST THEY WILL STEP BACK TO THE MAIN MENU
-// NONE OPTION IN ADD EMPLOYEE FOR THE ROLE TO KILL THE PROCESS IF THE PROPER ROLE DOES NOT EXIST
-
 function mainMenu() {
     inquirer
         .prompt({
@@ -232,14 +228,16 @@ function addRole() {
                             for (var i = 0; i < results.length; i++) {
                                 choiceArray.push(results[i].name);
                             }
-                            // choiceArray.push("None, exit to create a new department");
+                            choiceArray.push("None, exit to create a new department");
                             return choiceArray;
                         },
                         message: "What department does this role belong to?"
                     }
                 ])
                 .then(function (answer) {
-                    // if(answer.choice === "What department does this role belong to?"){mainMenu()};
+                    if(answer.choice === "What department does this role belong to?"){
+                        return mainMenu()
+                    };
                     for (var i = 0; i < results.length; i++) {
                         if (results[i].name === answer.choice) {
                             answer.department_id = results[i].id;
@@ -295,7 +293,7 @@ function addEmployee() {
                         for (var i = 0; i < results.length; i++) {
                             choiceArray.push(results[i].title);
                         }
-                        // choiceArray.push("None, exit process to create a new role");
+                        choiceArray.push("None, exit process to create a new role");
                         return choiceArray;
                     },
                     message: "What is the employee's role?"
@@ -303,7 +301,9 @@ function addEmployee() {
             ])
             .then(function (answer) {
                 console.log(answer.choice)
-                // if(answer.choice === "None, exit process to create a new role"){mainMenu();};
+                if(answer.choice === "None, exit process to create a new role"){
+                    return mainMenu();
+                };
                 // get the information of the chosen item
                 for (var i = 0; i < results.length; i++) {
                     if (results[i].title === answer.choice) {
