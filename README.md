@@ -37,7 +37,9 @@ This assignment is using SQL as a database. The premise is to track employees. T
 ​
 ### Screenshots
 ​
-![Image](assets/walk.gif)
+![Image](assets/walk1.gif)
+![Image](assets/walk2.gif)
+![Image](assets/walk3.gif)
 ​
 ### Link
 Check it out! 
