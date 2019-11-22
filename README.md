@@ -29,6 +29,8 @@ This assignment is using SQL as a database. The premise is to track employees. T
 >    * For this I seach for the employee to update, then offer the roles that are loaded as options for the employee to be altered to
 > * **Update an employee's manager**
 >    * For this I search the employee, Once I have them I offer a list of manager options, including None, so that the employee can be made a manager
+> * **Delete an employee**
+>    * A simple delete od the employee from the database. They are selected from a list and taken out.
 
 ### Technologies-Libraries
 - [NodeJS](https://nodejs.dev/) - Server side code
